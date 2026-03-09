@@ -1,98 +1,100 @@
 # OpenClaw Deploy Bot
 
-A Telegram bot that deploys [OpenClaw](https://openclaw.ai) AI agents on your server in minutes. No DevOps knowledge required.
+A Telegram bot that deploys [OpenClaw](https://openclaw.ai) AI agents on your own server. No technical skills required.
 
-## What it does
+## Why
 
-You buy a Linux server, give the bot your IP and password, and it sets everything up: Docker, Node.js, OpenClaw, config files, entrypoint. If something fails mid-deploy, it sends the error to Claude API and fixes it automatically.
+Services like [ClawPlane](https://www.clawplane.com/) charge you to host OpenClaw agents on their infrastructure. This bot does the same thing for free on a server you own.
 
-After setup, you manage everything from a Telegram menu:
+## What you need
 
-- **Servers** — add/remove Linux servers
-- **Containers** — create OpenClaw containers, rename, delete
-- **Employees** — add team members' SSH keys to containers
-- **Pairing** — confirm OpenClaw Telegram pairing from the bot
-- **Instructions** — generate Mac/Windows connection guides for your team
-- **Admins** — manage who can access the bot
+1. A Linux server ($5/mo on [Hetzner](https://www.hetzner.com/cloud/), [Hostinger](https://www.hostinger.com/vps-hosting), or any other provider). After purchase you'll get an **IP address**, **login** and **password**.
+2. [Claude Code](https://claude.ai/code) installed on your computer.
+3. API keys: [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/api-keys), and a Telegram bot token from [@BotFather](https://t.me/BotFather).
 
-## How to deploy
+## How to use
 
-The easiest way is with [Claude Code](https://claude.ai/code):
+**Step 1.** Download this repository to your computer:
 
-1. Open this folder in Claude Code
-2. Paste the prompt from [PROMPT.md](PROMPT.md)
-3. Answer 5 questions (server IP, bot token, Telegram ID, API key, Google Sheets)
-4. Claude Code SSHes into your server and sets everything up
-
-Full manual instructions: [CLAUDE.md](CLAUDE.md)
-
-## Requirements
-
-- A Linux server (any VPS, $5/mo is enough)
-- Python 3.10+
-- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
-- Anthropic API Key (for LLM-assisted deployment)
-- OpenAI API Key (for the agent)
-
-## Quick start (manual)
-
-```bash
-git clone https://github.com/vasilbo1/openclaw-deploy-bot.git
-cd openclaw-deploy-bot
-
-pip install -r requirements.txt
-
-# Generate encryption key
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-# Create .env
-cp .env.example .env
-# Edit .env with your tokens
-
-# Generate SSH key for the bot
-mkdir -p ssh_keys
-ssh-keygen -t ed25519 -f ssh_keys/id_ed25519 -N ""
-
-# Run
-python3 bot.py
 ```
+git clone https://github.com/vasilbo1/openclaw-deploy-bot.git
+```
+
+Or click the green **Code** button on GitHub and select **Download ZIP**, then unzip it.
+
+**Step 2.** Open the folder in Claude Code:
+
+```
+cd openclaw-deploy-bot
+claude
+```
+
+**Step 3.** Paste this prompt into Claude Code:
+
+```
+Deploy this Telegram bot to my server. Read CLAUDE.md for full instructions.
+
+Before starting, ask me for:
+1. Server IP and login (SSH)
+2. Telegram Bot Token (from @BotFather)
+3. My Telegram ID (can be found via @userinfobot)
+4. Anthropic API Key
+5. Do I need Google Sheets sync? If yes, I will provide the service account JSON key and Sheet ID.
+
+After receiving the data:
+- Connect to the server via SSH
+- Copy all bot files to the server
+- Install dependencies
+- Generate ENCRYPTION_KEY and the bot's SSH key
+- Create .env with my data
+- Configure the systemd service and start the bot
+- Verify the bot is running
+```
+
+**Step 4.** Answer Claude Code's questions. It will ask for your server IP, password, and API keys. Then it connects to your server and sets everything up automatically.
+
+**Step 5.** Open Telegram, find your bot, send `/start`. Done.
+
+From there you can create OpenClaw containers right from the Telegram menu. The bot will ask for API keys and deploy a fully configured agent for you.
+
+## What the bot can do
+
+- **Servers** — add your Linux servers (IP + login)
+- **Containers** — create OpenClaw AI agent containers with one tap
+- **Employees** — give team members SSH access to specific containers
+- **Pairing** — confirm OpenClaw Telegram pairing codes
+- **Instructions** — generate Mac/Windows connection guides for your team
+- **Admins** — manage who can use the bot
+
+## Is it safe?
+
+- You run the bot on **your own computer or server**. Nothing goes through third parties.
+- Server passwords are used once to copy an SSH key and are never stored.
+- API keys are encrypted before saving to the database.
+- The code is fully open. Read every line before running.
 
 ## Google Sheets sync (optional)
 
-The bot can auto-sync all data to Google Sheets. Set these environment variables:
+The bot can auto-sync all data (servers, containers, employees) to a Google Sheet. To enable, set these in your `.env`:
 
 ```
 GOOGLE_CREDENTIALS_PATH=/path/to/google-credentials.json
 GOOGLE_SPREADSHEET_ID=your_sheet_id
 ```
 
-If not configured, the bot works without it.
+If not configured, the bot works fine without it.
 
-## Security
+## How container deployment works under the hood
 
-- The bot runs on **your machine** — nothing goes through third parties
-- API keys are encrypted with Fernet before storing in SQLite
-- Server passwords are used once (to copy the SSH key) and never stored
-- All code is open — read every line before running
+When you tap "OpenClaw container" in the bot menu, it:
 
-## Architecture
+1. Creates a Docker container on your server
+2. Installs Node.js 22, OpenClaw, ffmpeg
+3. Writes the OpenClaw config with your API keys
+4. If any step fails, sends the error to Claude API, gets a fix command, and retries automatically
+5. Starts the OpenClaw gateway
 
-```
-bot.py              — Telegram bot (menus, conversation handler, 27 states)
-database.py         — async SQLite (servers, containers, employees, API keys, admins)
-ssh_manager.py      — SSH/Docker operations via paramiko
-sheets_sync.py      — SQLite → Google Sheets sync
-crypto.py           — Fernet encryption for API keys
-instructions.py     — Mac/Windows connection guide templates
-```
-
-### How container creation works
-
-1. Creates a Docker container from `ubuntu:latest`
-2. Installs Node.js 22, OpenClaw, ffmpeg, Python
-3. Writes OpenClaw config and auth profiles
-4. If a step fails — sends the error to Claude API, gets a fix, retries (up to 3x)
-5. Creates entrypoint and starts the OpenClaw gateway
+Your agent is live and connected to Telegram.
 
 ## License
 
