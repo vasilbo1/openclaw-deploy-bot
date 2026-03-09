@@ -1,0 +1,7 @@
+__pycache__/
+.env
+data.db
+ssh_keys/
+google-credentials.json
+*.pyc
+.DS_Store
