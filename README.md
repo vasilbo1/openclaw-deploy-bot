@@ -1,26 +1,22 @@
-# OpenClaw Deploy Bot
+# AI Server Admin Bot
 
-A Telegram bot that deploys [OpenClaw](https://openclaw.ai) AI agents on your own server. No technical skills required.
-
-## Why
-
-Services like [ClawPlane](https://www.clawplane.com/) charge you to host OpenClaw agents on their infrastructure. This bot does the same thing for free on a server you own.
+A Telegram bot that manages servers, Docker containers, and [OpenClaw](https://openclaw.ai) AI agents. Create containers, update API keys, set up GitHub auto-deploy — all from Telegram.
 
 ## What you need
 
-1. A Linux server ($5/mo on [Hetzner](https://www.hetzner.com/cloud/), [Hostinger](https://www.hostinger.com/vps-hosting), or any other provider). After purchase you'll get an **IP address**, **login** and **password**.
+1. A Linux server ($5/mo on [Hetzner](https://www.hetzner.com/cloud/), [Hostinger](https://www.hostinger.com/vps-hosting), or any provider). After purchase you'll get an **IP address**, **login** and **password**.
 2. [Claude Code](https://claude.ai/code) installed on your computer.
-3. API keys: [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/api-keys), and a Telegram bot token from [@BotFather](https://t.me/BotFather).
+3. API keys: [Anthropic](https://console.anthropic.com/) and a Telegram bot token from [@BotFather](https://t.me/BotFather).
 
-## How to use
+## How to deploy
 
-**Step 1.** Download this repository to your computer:
+**Step 1.** Download this repository:
 
 ```
 git clone https://github.com/vasilbo1/openclaw-deploy-bot.git
 ```
 
-Or click the green **Code** button on GitHub and select **Download ZIP**, then unzip it.
+Or click the green **Code** button on GitHub and select **Download ZIP**.
 
 **Step 2.** Open the folder in Claude Code:
 
@@ -29,17 +25,19 @@ cd openclaw-deploy-bot
 claude
 ```
 
-**Step 3.** Paste this prompt into Claude Code:
+**Step 3.** Paste this prompt:
 
 ```
 Deploy this Telegram bot to my server. Read CLAUDE.md for full instructions.
 
 Before starting, ask me for:
 1. Server IP and login (SSH)
-2. Telegram Bot Token (from @BotFather)
-3. My Telegram ID (can be found via @userinfobot)
-4. Anthropic API Key
-5. Do I need Google Sheets sync? If yes, I will provide the service account JSON key and Sheet ID.
+2. Server password
+3. Telegram Bot Token (from @BotFather)
+4. My Telegram ID (from @userinfobot)
+5. Anthropic API Key
+6. Do I need GitHub integration? If yes, I'll provide my GitHub token.
+7. Do I need Google Sheets sync? If yes, I'll provide credentials.
 
 After receiving the data:
 - Connect to the server via SSH
@@ -51,50 +49,39 @@ After receiving the data:
 - Verify the bot is running
 ```
 
-**Step 4.** Answer Claude Code's questions. It will ask for your server IP, password, and API keys. Then it connects to your server and sets everything up automatically.
+**Step 4.** Answer Claude's questions — it will set everything up automatically.
 
 **Step 5.** Open Telegram, find your bot, send `/start`. Done.
 
-From there you can create OpenClaw containers right from the Telegram menu. The bot will ask for API keys and deploy a fully configured agent for you.
-
 ## What the bot can do
 
-- **Servers** — add your Linux servers (IP + login)
-- **Containers** — create OpenClaw AI agent containers with one tap
-- **Employees** — give team members SSH access to specific containers
-- **Pairing** — confirm OpenClaw Telegram pairing codes
-- **Instructions** — generate Mac/Windows connection guides for your team
-- **Admins** — manage who can use the bot
+- **Servers** — add/remove servers, auto health check every 30 min
+- **Containers** — create OpenClaw AI agents with one tap (auto-installs everything)
+- **API Keys** — update Anthropic/OpenAI/Telegram tokens from chat
+- **GitHub** — create repos, auto-setup deploy.yml + secrets, git init + push from server
+- **Employees** — create SSH access + generate connection instructions
+- **Pairing** — confirm OpenClaw Telegram pairing
+- **Google Sheets** — auto-sync all data
+- **Monitoring** — health checks + daily reports + OpenClaw update notifications
+
+## GitHub auto-deploy
+
+The bot can create a GitHub repository for any project on your server and configure automatic deployment:
+
+1. Bot creates a private repo on GitHub
+2. Sets up `deploy.yml` with correct branch detection (master/main)
+3. Configures deployment secrets automatically
+4. Runs `git init` + `git push` on the server
+5. Every future push → server auto-updates (git pull + install deps + restart service)
+
+To use this feature, add `GITHUB_TOKEN` to your `.env` (GitHub token with `repo` scope).
 
 ## Is it safe?
 
-- You run the bot on **your own computer or server**. Nothing goes through third parties.
+- You run the bot on **your own server**. Nothing goes through third parties.
 - Server passwords are used once to copy an SSH key and are never stored.
-- API keys are encrypted before saving to the database.
-- The code is fully open. Read every line before running.
-
-## Google Sheets sync (optional)
-
-The bot can auto-sync all data (servers, containers, employees) to a Google Sheet. To enable, set these in your `.env`:
-
-```
-GOOGLE_CREDENTIALS_PATH=/path/to/google-credentials.json
-GOOGLE_SPREADSHEET_ID=your_sheet_id
-```
-
-If not configured, the bot works fine without it.
-
-## How container deployment works under the hood
-
-When you tap "OpenClaw container" in the bot menu, it:
-
-1. Creates a Docker container on your server
-2. Installs Node.js 22, OpenClaw, ffmpeg
-3. Writes the OpenClaw config with your API keys
-4. If any step fails, sends the error to Claude API, gets a fix command, and retries automatically
-5. Starts the OpenClaw gateway
-
-Your agent is live and connected to Telegram.
+- API keys are encrypted with Fernet before saving to the database.
+- The code is fully open — read every line before running.
 
 ## License
 

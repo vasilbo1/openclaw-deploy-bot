@@ -50,6 +50,15 @@ async def create_tables():
                 added_by TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS paired_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                container_id INTEGER NOT NULL,
+                telegram_id TEXT NOT NULL,
+                telegram_username TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (container_id) REFERENCES containers(id),
+                UNIQUE(container_id, telegram_id)
+            );
         """)
         # Migration: add openclaw_profile if missing
         try:
@@ -65,6 +74,11 @@ async def create_tables():
         try:
             await db.execute("ALTER TABLE api_keys ADD COLUMN anthropic_label TEXT DEFAULT ''")
             await db.execute("ALTER TABLE api_keys ADD COLUMN openai_label TEXT DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE containers ADD COLUMN default_model TEXT DEFAULT ''")
             await db.commit()
         except Exception:
             pass
@@ -145,10 +159,10 @@ async def delete_container(container_id):
     schedule_sync()
 
 def make_key_label(key: str) -> str:
-    """Generate short label from API key: first 6 + ... + last 4."""
-    if not key or len(key) < 12:
+    """Generate short label from API key: first 6 + ... + last 7."""
+    if not key or len(key) < 15:
         return key or ''
-    return key[:6] + '...' + key[-4:]
+    return key[:6] + '...' + key[-7:]
 
 async def add_api_keys(container_id, anthropic_enc, openai_enc, tg_enc, bot_username='', anthropic_label='', openai_label=''):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -163,6 +177,26 @@ async def get_api_keys(container_id):
         db.row_factory = aiosqlite.Row
         cur = await db.execute("SELECT * FROM api_keys WHERE container_id=?", (container_id,))
         return await cur.fetchone()
+
+async def update_api_key(container_id: int, key_type: str, encrypted_value: str, label: str = ''):
+    """Update a single API key field for a container.
+    key_type: 'anthropic', 'openai', or 'telegram'
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        if key_type == 'anthropic':
+            await db.execute(
+                "UPDATE api_keys SET anthropic_key_encrypted=?, anthropic_label=? WHERE container_id=?",
+                (encrypted_value, label, container_id))
+        elif key_type == 'openai':
+            await db.execute(
+                "UPDATE api_keys SET openai_key_encrypted=?, openai_label=? WHERE container_id=?",
+                (encrypted_value, label, container_id))
+        elif key_type == 'telegram':
+            await db.execute(
+                "UPDATE api_keys SET telegram_token_encrypted=? WHERE container_id=?",
+                (encrypted_value, container_id))
+        await db.commit()
+    schedule_sync()
 
 async def update_bot_username(container_id, bot_username):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -216,5 +250,46 @@ async def remove_admin(admin_id):
 async def rename_container(container_id, new_name):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE containers SET name=? WHERE id=?", (new_name, container_id))
+        await db.commit()
+    schedule_sync()
+
+async def update_container_model(container_id, model):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE containers SET default_model=? WHERE id=?", (model, container_id))
+        await db.commit()
+    schedule_sync()
+
+# ── PAIRED USERS ─────────────────────────────────────────────────────────────
+
+async def add_paired_user(container_id: int, telegram_id: str, telegram_username: str = ''):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO paired_users (container_id, telegram_id, telegram_username) VALUES (?,?,?)",
+            (container_id, str(telegram_id), telegram_username))
+        await db.commit()
+    schedule_sync()
+
+async def get_paired_users_db(container_id: int = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if container_id:
+            cur = await db.execute(
+                "SELECT * FROM paired_users WHERE container_id=? ORDER BY id",
+                (container_id,))
+        else:
+            cur = await db.execute("SELECT * FROM paired_users ORDER BY id")
+        return await cur.fetchall()
+
+async def update_paired_username(container_id: int, telegram_id: str, username: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE paired_users SET telegram_username=? WHERE container_id=? AND telegram_id=?",
+            (username, container_id, str(telegram_id)))
+        await db.commit()
+    schedule_sync()
+
+async def delete_paired_user(paired_user_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM paired_users WHERE id=?", (paired_user_id,))
         await db.commit()
     schedule_sync()

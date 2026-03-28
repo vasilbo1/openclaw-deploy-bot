@@ -1,5 +1,5 @@
 [Unit]
-Description=AI Server Admin Telegram Bot
+Description=Telegram Bot — AI Server Admin
 After=network.target
 
 [Service]
@@ -8,6 +8,8 @@ WorkingDirectory=/root/tgbot
 ExecStart=/usr/bin/python3 bot.py
 Restart=always
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
